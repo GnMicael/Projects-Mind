@@ -32,19 +32,20 @@ const schema = z.object({
 });
 
 function Section({ title, children }) {
-  return <section className="card p-5"><h2 className="mb-4 text-lg font-semibold">{title}</h2>{children}</section>;
+  return <section className="card settings-card p-5"><h2 className="settings-title mb-4 text-lg font-semibold">{title}</h2>{children}</section>;
 }
 function Choice({ on, children, ...p }) {
-  return <button aria-pressed={on} className={`btn ${on ? 'bg-brand text-[#171717]' : 'border border-line'}`} {...p}>{children}</button>;
+  return <button aria-pressed={on} className={`btn settings-choice ${on ? 'bg-brand text-[#171717]' : 'border border-line'}`} {...p}>{children}</button>;
 }
 
 export default function Settings() {
   const { user, profile, saveProfile, reset } = useAuth();
   const pwa = usePwaInstall();
+  const prefs = profile?.prefs || {};
   const notif = prefs.notifications || {};
-  const [theme, setTheme] = useState(localStorage.getItem('pm-theme') || 'dark');
-  const [accent, setAccent] = useState(localStorage.getItem('pm-accent') || 'laranja');
-  const [datefmt, setDatefmt] = useState(localStorage.getItem('pm-datefmt') || 'dmy');
+  const [theme, setTheme] = useState(() => prefs.theme || localStorage.getItem('pm-theme') || 'dark');
+  const [accent, setAccent] = useState(() => prefs.accent || localStorage.getItem('pm-accent') || 'laranja');
+  const [datefmt, setDatefmt] = useState(() => prefs.dateFormat || localStorage.getItem('pm-datefmt') || 'dmy');
   const [name, setName] = useState(profile?.name || '');
   const [note, setNote] = useState({});
   const [sent, setSent] = useState('');
@@ -77,12 +78,17 @@ export default function Settings() {
     setSent(saved && (mailed || !emailConfigured) ? 'ok' : saved ? 'nomail' : 'mailonly');
   };
   const Toggle = ({ k, label, hint }) => (
-    <label className="flex min-h-[48px] items-center justify-between gap-4 text-sm"><span>{label}<span className="block text-xs text-muted">{hint}</span></span>
-      <input type="checkbox" className="h-5 w-5 accent-[#F97316]" checked={notif[k] !== false} onChange={(e) => savePrefs({ notifications: { [k]: e.target.checked } }, 'notif')} /></label>
+    <label className="settings-toggle flex min-h-[48px] items-center justify-between gap-4 text-sm"><span>{label}<span className="block text-xs text-muted">{hint}</span></span>
+      <input type="checkbox" className="h-5 w-5" checked={notif[k] !== false} onChange={(e) => savePrefs({ notifications: { [k]: e.target.checked } }, 'notif')} /></label>
   );
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
+    <div className="settings-page mx-auto max-w-2xl space-y-6">
+      <header className="settings-heading">
+        <p className="settings-eyebrow">Seu espaço, do seu jeito</p>
+        <h1 className="mt-1 text-3xl font-extrabold tracking-tight">Configurações</h1>
+        <p className="mt-2 max-w-xl text-sm text-muted">Pequenos ajustes para deixar o Project Mind com a sua cara.</p>
+      </header>
       <Section title="Conta">
         <label className="label" htmlFor="nm">Nome</label>
         <div className="flex gap-2"><input id="nm" className="input" value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" /><button className="btn-ghost" onClick={saveName}>Salvar</button></div>
