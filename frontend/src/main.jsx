@@ -5,9 +5,11 @@ import App from './App.jsx';
 import { AuthProvider } from './context/AuthContext.jsx';
 import ErrorBoundary from './components/ErrorBoundary.jsx';
 import { initTheme } from './lib/theme.js';
+import { registerSW } from './lib/pwa.js';
 import './index.css';
 
 initTheme();
+registerSW();
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>

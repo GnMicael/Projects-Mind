@@ -1,9 +1,13 @@
 import { useEffect, useState } from 'react';
-import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, FolderKanban, PlusCircle, CheckSquare, CalendarDays, Network, Lightbulb, LayoutTemplate, Settings, Menu, X, PanelLeftClose, PanelLeftOpen, LogOut } from 'lucide-react';
+import { NavLink, Outlet, useLocation } from 'react-router-dom';
+import { LayoutDashboard, FolderKanban, PlusCircle, CheckSquare, CalendarDays, Network, Lightbulb, LayoutTemplate, Settings, Menu, X, PanelLeftClose, PanelLeftOpen, Search } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import Logo from './Logo';
 import NotificationBell from './NotificationBell';
+import Breadcrumbs from './Breadcrumbs';
+import ProfileMenu from './ProfileMenu';
+import QuickCreate from './QuickCreate';
+import SearchDialog from './SearchDialog';
 import { applyAccent, applyTheme } from '../lib/theme';
 import { setDateFormat } from '../config/projects';
 
@@ -20,16 +24,23 @@ const NAV = [
 ];
 
 export default function AppLayout() {
-  const { user, profile, logout } = useAuth();
+  const { profile } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
   const [open, setOpen] = useState(false);
+  const [searching, setSearching] = useState(false);
   const { pathname } = useLocation();
-  const navigate = useNavigate();
+  const current = [...NAV].reverse().find((n) => (n.end ? pathname === n.to : pathname.startsWith(n.to)))?.label || (pathname.startsWith('/app/projetos') ? 'Meus projetos' : '');
+
   useEffect(() => {
     const p = profile?.prefs; if (!p) return;
     if (p.theme) applyTheme(p.theme); if (p.accent) applyAccent(p.accent); if (p.dateFormat) setDateFormat(p.dateFormat);
   }, [profile?.prefs]);
-  const current = [...NAV].reverse().find((n) => (n.end ? pathname === n.to : pathname.startsWith(n.to)))?.label || (pathname.startsWith('/app/projetos') ? 'Meus projetos' : '');
+
+  useEffect(() => {
+    const h = (e) => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); setSearching(true); } };
+    window.addEventListener('keydown', h);
+    return () => window.removeEventListener('keydown', h);
+  }, []);
 
   const links = (showText) => NAV.map(({ to, label, icon: Icon, end, match }) => (
     <NavLink key={to} to={to} end={end} title={label} onClick={() => setOpen(false)}
@@ -60,20 +71,20 @@ export default function AppLayout() {
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-line bg-bg px-4">
-          <button className="md:hidden" onClick={() => setOpen(true)} aria-label="Abrir menu"><Menu size={22} /></button>
-          <p className="font-display text-lg font-semibold">{current}</p>
-          <div className="ml-auto flex items-center gap-2">
-            <button className="btn-primary !min-h-[36px] !px-3" onClick={() => navigate('/app/projetos/novo')}><PlusCircle size={16} /><span className="hidden sm:inline">Novo projeto</span></button>
+        <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-line bg-bg px-3 sm:px-4">
+          <button className="grid h-10 w-10 place-items-center md:hidden" onClick={() => setOpen(true)} aria-label="Abrir menu"><Menu size={22} /></button>
+          <div className="min-w-0 flex-1"><Breadcrumbs title={current} /></div>
+          <div className="flex shrink-0 items-center gap-1 sm:gap-2">
+            <button onClick={() => setSearching(true)} className="hidden min-h-[36px] items-center gap-2 rounded border border-line px-3 text-sm text-muted hover:border-brand sm:flex" aria-label="Buscar"><Search size={15} />Buscar<kbd className="ml-3 rounded border border-line px-1 text-xs">Ctrl K</kbd></button>
+            <button onClick={() => setSearching(true)} className="grid h-10 w-10 place-items-center text-muted hover:text-ink sm:hidden" aria-label="Buscar"><Search size={18} /></button>
+            <QuickCreate />
             <NotificationBell />
-            <span className="grid h-9 w-9 place-items-center rounded-full bg-amber text-sm font-bold text-[#171717]" title={user?.email}>
-              {user?.photoURL ? <img src={user.photoURL} alt="" referrerPolicy="no-referrer" className="h-9 w-9 rounded-full object-cover" /> : (user?.displayName || user?.email || '?')[0].toUpperCase()}
-            </span>
-            <button className="text-muted hover:text-ink" onClick={logout} aria-label="Sair"><LogOut size={18} /></button>
+            <ProfileMenu />
           </div>
         </header>
         <main id="main" tabIndex={-1} className="flex-1 p-4 outline-none md:p-8"><Outlet /></main>
       </div>
+      {searching && <SearchDialog onClose={() => setSearching(false)} />}
     </div>
   );
 }

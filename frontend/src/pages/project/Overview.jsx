@@ -1,6 +1,8 @@
 import { Link, useOutletContext } from 'react-router-dom';
 import { Pencil } from 'lucide-react';
 import { fmtDate, today } from '../../config/projects';
+import useOwned from '../../hooks/useOwned';
+import { projectHealth } from '../../config/health';
 import { columnsOf } from '../../config/tasks';
 
 export default function Overview() {
@@ -9,12 +11,19 @@ export default function Overview() {
   const late = tasks.filter((t) => t.status !== 'done' && t.dueDate && t.dueDate < today()).length;
   const progress = tasks.length ? Math.round((done / tasks.length) * 100) : p.progress || 0;
   const cols = columnsOf(p);
+  const risks = useOwned('risks').items.filter((r) => r.projectId === p.id);
+  const health = projectHealth({ project: p, tasks, risks, today: today() });
+  const HC = ['bg-leaf', 'bg-amber', 'bg-red-500'][health.level];
   const Info = ({ l, v }) => v ? <div><p className="text-sm font-semibold">{l}</p><p className="whitespace-pre-line text-sm text-muted">{v}</p></div> : null;
 
   return (
     <div className="space-y-6">
       <div className="grid gap-4 sm:grid-cols-4">
         {[['Status', p.status], ['Prioridade', p.priority], ['Prazo', fmtDate(p.endDate)], ['Progresso', `${progress}%`]].map(([l, v]) => <div key={l} className="card p-4"><p className="text-sm text-muted">{l}</p><p className="font-display text-xl font-extrabold">{v}</p></div>)}
+      </div>
+      <div className="card p-5">
+        <div className="flex items-center gap-3"><h3 className="font-semibold">Saúde do projeto</h3><span className={`rounded px-2 py-0.5 text-xs font-semibold text-[#171717] ${HC}`}>{health.label}</span></div>
+        {health.reasons.length ? <ul className="mt-2 list-disc pl-5 text-sm text-muted">{health.reasons.map((r) => <li key={r}>{r}</li>)}</ul> : <p className="mt-2 text-sm text-muted">Nenhum problema detectado em prazos, tarefas ou riscos.</p>}
       </div>
       <div className="card p-5">
         <div className="h-2 overflow-hidden rounded-full bg-bg"><div className="h-full bg-amber" style={{ width: `${progress}%` }} /></div>

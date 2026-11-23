@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Plus } from 'lucide-react';
 import FormModal from '../components/FormModal';
 import TaskModal from '../components/TaskModal';
@@ -20,12 +20,14 @@ const FIELDS = [
 export default function Brainstorm() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const { items, loading, error } = useOwned('ideas');
   const { projects } = useProjects();
   const [modal, setModal] = useState(null);
   const [task, setTask] = useState(null);
   const [filter, setFilter] = useState('ativas');
   const [msg, setMsg] = useState('');
+  useEffect(() => { if (location.state?.new) setModal({}); }, [location.key]); // eslint-disable-line
   const list = items.filter((i) => (filter === 'ativas' ? i.status !== 'Arquivada' : filter === 'todas' || i.status === filter))
     .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
 

@@ -1,24 +1,26 @@
 import { useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
-import { DndContext, MouseSensor, TouchSensor, useDraggable, useDroppable, useSensor, useSensors } from '@dnd-kit/core';
+import { DndContext, MouseSensor, TouchSensor, pointerWithin, rectIntersection, useDraggable, useDroppable, useSensor, useSensors } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 import { ArrowLeft, ArrowRight, Pencil, Plus, Trash2 } from 'lucide-react';
 import TaskModal from '../../components/TaskModal';
 import { updateOwned } from '../../lib/crud';
 import { updateProject } from '../../lib/projects';
-import { columnsOf, uid } from '../../config/tasks';
+import { columnsOf, ord, orderFor, uid } from '../../config/tasks';
 import { fmtDate, today } from '../../config/projects';
 
 const PRIO = { Baixa: 'bg-line', Média: 'bg-amber', Alta: 'bg-brand', Urgente: 'bg-red-500' };
 
 function Card({ t, onOpen }) {
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: t.id });
+  const drag = useDraggable({ id: t.id });
+  const drop = useDroppable({ id: t.id });
+  const ref = (n) => { drag.setNodeRef(n); drop.setNodeRef(n); };
   const subs = [...(t.subtasks || []), ...(t.checklist || [])];
   const late = t.status !== 'done' && t.dueDate && t.dueDate < today();
   return (
-    <div ref={setNodeRef} {...listeners} {...attributes} onClick={() => !isDragging && onOpen(t)}
-      style={{ transform: CSS.Translate.toString(transform), zIndex: isDragging ? 20 : undefined }}
-      className={`cursor-grab rounded border border-line bg-bg p-3 text-left ${isDragging ? 'opacity-80 shadow-lg' : ''}`}>
+    <div ref={ref} {...drag.listeners} {...drag.attributes} onClick={() => !drag.isDragging && onOpen(t)}
+      style={{ transform: CSS.Translate.toString(drag.transform), zIndex: drag.isDragging ? 20 : undefined }}
+      className={`cursor-grab rounded border bg-bg p-3 text-left ${drag.isDragging ? 'border-line opacity-80 shadow-lg' : drop.isOver ? 'border-brand' : 'border-line'}`}>
       <div className="flex items-start gap-2"><span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${PRIO[t.priority]}`} title={t.priority} /><p className="text-sm font-medium">{t.title}</p></div>
       {(t.dueDate || subs.length > 0 || t.labels?.length > 0) && (
         <p className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted">
@@ -56,12 +58,32 @@ export default function Board() {
   const [err, setErr] = useState('');
   const cols = columnsOf(project);
   const sensors = useSensors(useSensor(MouseSensor, { activationConstraint: { distance: 6 } }), useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 6 } }));
+  const colOf = (t) => (cols.some((c) => c.id === t.status) ? t.status : cols[0].id);
+  const tasksIn = (id) => tasks.filter((t) => colOf(t) === id).sort((a, b) => ord(a) - ord(b));
 
   const run = async (fn) => { setErr(''); try { await fn(); } catch { setErr('Não foi possível salvar a alteração. Tente novamente.'); } };
   const saveCols = (next) => run(() => updateProject(project.id, { columns: next }));
+  // cartões têm prioridade sobre a coluna quando o ponteiro está sobre eles
+  const collision = (args) => {
+    const hits = pointerWithin(args); const c = hits.length ? hits : rectIntersection(args);
+    const card = c.find((x) => tasks.some((t) => t.id === x.id));
+    return card ? [card] : c;
+  };
   const onDragEnd = ({ active, over }) => {
     const t = tasks.find((x) => x.id === active.id);
-    if (t && over && over.id !== t.status) run(() => updateOwned('tasks', t.id, { status: over.id }));
+    if (!t || !over || over.id === t.id) return;
+    const target = tasks.find((x) => x.id === over.id);
+    const colId = target ? colOf(target) : over.id;
+    if (!cols.some((c) => c.id === colId)) return;
+    const list = tasksIn(colId).filter((x) => x.id !== t.id);
+    let before = null;
+    if (target) {
+      const idx = list.findIndex((x) => x.id === target.id);
+      const movingDown = colOf(t) === colId && ord(t) < ord(target);
+      before = movingDown ? list[idx + 1]?.id ?? null : target.id; // descendo: vai para depois do alvo
+    }
+    const order = orderFor(list, before);
+    run(() => updateOwned('tasks', t.id, colOf(t) === colId ? { order } : { status: colId, order }));
   };
   const add = () => { const name = window.prompt('Nome da nova coluna'); if (name?.trim()) saveCols([...cols, { id: `c_${uid()}`, name: name.trim().slice(0, 40) }]); };
   const rename = (c) => { const name = window.prompt('Novo nome da coluna', c.name); if (name?.trim()) saveCols(cols.map((x) => (x.id === c.id ? { ...x, name: name.trim().slice(0, 40) } : x))); };
@@ -71,16 +93,13 @@ export default function Board() {
   return (
     <div>
       <div className="mb-4 flex items-center justify-between gap-3">
-        <p className="text-sm text-muted">Arraste os cartões entre as colunas. No celular, segure o cartão por um instante.</p>
+        <p className="text-sm text-muted">Arraste os cartões entre colunas ou para cima e para baixo na mesma coluna. No celular, segure o cartão por um instante.</p>
         <button className="btn-ghost shrink-0" onClick={add}><Plus size={16} />Coluna</button>
       </div>
       {err && <p role="alert" className="err mb-3">{err}</p>}
-      <DndContext sensors={sensors} onDragEnd={onDragEnd}>
+      <DndContext sensors={sensors} collisionDetection={collision} onDragEnd={onDragEnd}>
         <div className="flex items-start gap-4 overflow-x-auto pb-4">
-          {cols.map((c, i) => (
-            <Column key={c.id} col={c} i={i} total={cols.length} tasks={tasks.filter((t) => (cols.some((x) => x.id === t.status) ? t.status : cols[0].id) === c.id)}
-              onAdd={(status) => setModal({ status })} onOpen={(task) => setModal({ task })} onRename={rename} onMove={move} onDelete={del} />
-          ))}
+          {cols.map((c, i) => <Column key={c.id} col={c} i={i} total={cols.length} tasks={tasksIn(c.id)} onAdd={(status) => setModal({ status })} onOpen={(task) => setModal({ task })} onRename={rename} onMove={move} onDelete={del} />)}
         </div>
       </DndContext>
       {modal && <TaskModal task={modal.task} status={modal.status} projectId={project.id} projects={projects} onClose={() => setModal(null)} />}

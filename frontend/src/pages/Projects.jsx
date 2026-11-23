@@ -42,7 +42,7 @@ export default function Projects() {
   const actions = (p) => [
     [Star, p.favorite ? 'Remover dos favoritos' : 'Favoritar', () => act(() => updateProject(p.id, { favorite: !p.favorite }), ''), p.favorite ? 'text-amber' : ''],
     [Pencil, 'Editar', () => navigate(`/app/projetos/${p.id}/editar`)],
-    [Copy, 'Duplicar', () => act(() => duplicateProject(user.uid, p), 'Projeto duplicado.')],
+    [Copy, 'Duplicar', () => act(() => duplicateProject(user.uid, p, tasks.filter((t) => t.projectId === p.id)), 'Projeto duplicado.')],
     [Archive, p.status === 'Arquivado' ? 'Desarquivar' : 'Arquivar', () => act(() => updateProject(p.id, { status: p.status === 'Arquivado' ? 'Planejamento' : 'Arquivado' }), p.status === 'Arquivado' ? 'Projeto desarquivado.' : 'Projeto arquivado.')],
     [Trash2, 'Excluir', () => window.confirm(`Excluir "${p.name}"? Esta ação não pode ser desfeita.`) && act(() => deleteProject(user.uid, p.id), 'Projeto excluído.'), 'hover:text-red-400'],
   ].map(([Icon, label, fn, cls = '']) => (
@@ -52,7 +52,7 @@ export default function Projects() {
   const Card = ({ p }) => (
     <article className={`card p-4 ${view === 'list' ? 'flex flex-wrap items-center gap-4' : 'flex flex-col'}`}>
       <div className={view === 'list' ? 'min-w-[200px] flex-1' : ''}>
-        <div className="flex items-start justify-between gap-2"><h3 className="font-semibold"><Link className="hover:text-brand" to={`/app/projetos/${p.id}`}>{p.name}</Link></h3><span className={`text-xs font-semibold ${PRIO_COLOR[p.priority]}`}>{p.priority}</span></div>
+        <div className="flex items-start justify-between gap-2"><h3 className="font-semibold"><Link className="hover:text-brand" to={`/app/projetos/${p.id}`}>{p.icon ? `${p.icon} ` : ''}{p.name}</Link></h3><span className={`text-xs font-semibold ${PRIO_COLOR[p.priority]}`}>{p.priority}</span></div>
         {p.description && <p className="mt-1 line-clamp-2 text-sm text-muted">{p.description}</p>}
         <p className="mt-2 text-xs text-muted">{p.status}{p.category ? ` · ${p.category}` : ''} · Prazo {fmtDate(p.endDate)} · Atualizado {fmtTs(p.updatedAt)}</p>
       </div>

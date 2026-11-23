@@ -9,6 +9,16 @@ import { auth, db } from '../lib/firebase';
 import { useAuth } from '../context/AuthContext';
 import { ACCENT_LIST, applyAccent, applyTheme } from '../lib/theme';
 import { DATE_FORMATS, setDateFormat } from '../config/projects';
+import { emailConfigured, sendFeedbackEmail } from '../lib/email';
+import { usePwaInstall } from '../lib/pwa';
+
+const FB = {
+  ok: { good: true, t: 'Enviado. Obrigado pelo retorno!' },
+  nomail: { good: true, t: 'Feedback salvo, mas o e-mail não pôde ser enviado agora.' },
+  mailonly: { good: true, t: 'E-mail enviado (não foi possível salvar no histórico).' },
+  err: { good: false, t: 'Não foi possível enviar. Tente novamente.' },
+  wait: { good: false, t: 'Aguarde alguns segundos antes de enviar outro feedback.' },
+};
 
 const WA = (import.meta.env.VITE_SUPPORT_WHATSAPP || '').replace(/\D/g, '');
 const MAIL = import.meta.env.VITE_SUPPORT_EMAIL || '';
@@ -30,7 +40,7 @@ function Choice({ on, children, ...p }) {
 
 export default function Settings() {
   const { user, profile, saveProfile, reset } = useAuth();
-  const prefs = profile?.prefs || {};
+  const pwa = usePwaInstall();
   const notif = prefs.notifications || {};
   const [theme, setTheme] = useState(localStorage.getItem('pm-theme') || 'dark');
   const [accent, setAccent] = useState(localStorage.getItem('pm-accent') || 'laranja');
@@ -55,8 +65,16 @@ export default function Settings() {
   };
   const submit = async (v) => {
     setSent('');
-    try { await addDoc(collection(db, 'feedback'), { ...v, ownerId: user.uid, email: user.email, createdAt: serverTimestamp() }); resetForm({ category: 'bug', subject: '', description: '', projectContext: '' }); setSent('ok'); }
-    catch { setSent('err'); }
+    if (Date.now() - Number(localStorage.getItem('pm-fb-last') || 0) < 30000) return setSent('wait');
+    let saved = false; let mailed = false;
+    try { await addDoc(collection(db, 'feedback'), { ...v, ownerId: user.uid, email: user.email, createdAt: serverTimestamp() }); saved = true; } catch { /* tenta o e-mail mesmo assim */ }
+    if (emailConfigured) {
+      try { mailed = await sendFeedbackEmail({ ...v, name: profile?.name || user.displayName || '', email: user.email, uid: user.uid }); } catch { /* tratado abaixo */ }
+    }
+    if (!saved && !mailed) return setSent('err');
+    localStorage.setItem('pm-fb-last', String(Date.now()));
+    resetForm({ category: 'bug', subject: '', description: '', projectContext: '' });
+    setSent(saved && (mailed || !emailConfigured) ? 'ok' : saved ? 'nomail' : 'mailonly');
   };
   const Toggle = ({ k, label, hint }) => (
     <label className="flex min-h-[48px] items-center justify-between gap-4 text-sm"><span>{label}<span className="block text-xs text-muted">{hint}</span></span>
@@ -97,6 +115,12 @@ export default function Settings() {
         <p className="mt-2 text-xs text-muted">Os avisos aparecem no sino da barra superior. Envio por e-mail ou push ainda não existe.</p><Note k="notif" />
       </Section>
 
+      <Section title="Instalar no celular">
+        {pwa.installed ? <p className="text-sm text-muted">O app já está instalado neste aparelho.</p>
+          : pwa.available ? <button className="btn-primary" onClick={pwa.prompt}>Instalar Project Mind</button>
+          : <p className="text-sm text-muted">No iPhone (Safari): toque em Compartilhar e depois em “Adicionar à Tela de Início”. No Android (Chrome): menu ⋮ e “Instalar app”.</p>}
+      </Section>
+
       <Section title="Suporte">
         {WA || MAIL ? (
           <div className="mb-5 flex flex-wrap gap-2">
@@ -110,8 +134,7 @@ export default function Settings() {
           <div><label className="label" htmlFor="s">Assunto</label><input id="s" className="input" {...register('subject')} />{errors.subject && <p className="err">{errors.subject.message}</p>}</div>
           <div><label className="label" htmlFor="d">Descrição</label><textarea id="d" rows={4} className="input py-2" {...register('description')} />{errors.description && <p className="err">{errors.description.message}</p>}</div>
           <div><label className="label" htmlFor="pc">Projeto relacionado (opcional)</label><input id="pc" className="input" {...register('projectContext')} /></div>
-          {sent === 'ok' && <p className="text-sm text-leaf">Enviado. Obrigado pelo retorno!</p>}
-          {sent === 'err' && <p className="err">Não foi possível enviar. Tente novamente.</p>}
+          {FB[sent] && <p role="status" className={`text-sm ${FB[sent].good ? 'text-leaf' : 'text-red-400'}`}>{FB[sent].t}</p>}
           <button className="btn-primary" disabled={isSubmitting}>{isSubmitting ? 'Enviando…' : 'Enviar feedback'}</button>
         </form>
       </Section>

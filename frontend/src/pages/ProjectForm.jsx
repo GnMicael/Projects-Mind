@@ -9,6 +9,7 @@ import { METHODS, PRIORITY, STATUS, TEMPLATES, TYPES } from '../config/projects'
 
 const opt = z.string().trim().max(2000).optional();
 const schema = z.object({
+  icon: z.string().trim().max(8).optional(),
   name: z.string().trim().min(2, 'Dê um nome ao projeto (mínimo 2 letras).').max(100),
   description: opt, category: z.string().trim().max(60).optional(), tags: z.string().max(200).optional(),
   type: z.string().optional(), priority: z.string().optional(), status: z.string().optional(),
@@ -61,7 +62,8 @@ export default function ProjectForm() {
     <form onSubmit={handleSubmit(onSubmit)} noValidate className="mx-auto max-w-2xl space-y-6">
       <h2 className="text-2xl font-extrabold">{id ? 'Editar projeto' : 'Novo projeto'}</h2>
       <Group title="Essencial">
-        <F label="Nome do projeto" id="name" error={errors.name}><input id="name" className="input" {...register('name')} /></F>
+        <div className="grid gap-4 sm:grid-cols-[1fr_120px]"><F label="Nome do projeto" id="name" error={errors.name}><input id="name" className="input" {...register('name')} /></F>
+          <F label="Ícone (emoji)" id="icon" error={errors.icon}><input id="icon" maxLength={8} placeholder="🚀" className="input" {...register('icon')} /></F></div>
         {Area('description', 'Descrição', 3)}
         <div className="grid gap-4 sm:grid-cols-2">
           <F label="Prioridade" id="priority"><Sel id="priority" list={PRIORITY} {...register('priority')} /></F>

@@ -17,7 +17,7 @@ export default function Templates() {
     setBusy(t.id); setErr('');
     try {
       const ref = await createProject(user.uid, { name: name.trim().slice(0, 100), template: t.id, type: t.type, method: t.method, columns: t.columns, mode: 'Individual' });
-      await Promise.all(t.tasks.map(([title, priority]) => createOwned('tasks', user.uid, { title, priority, projectId: ref.id, status: 'todo', description: '', checklist: [], subtasks: [], labels: [] })));
+      await Promise.all(t.tasks.map(([title, priority], i) => createOwned('tasks', user.uid, { order: Date.now() + i, title, priority, projectId: ref.id, status: 'todo', description: '', checklist: [], subtasks: [], labels: [] })));
       navigate(`/app/projetos/${ref.id}/quadro`);
     } catch { setErr('Não foi possível criar o projeto a partir do modelo. Tente novamente.'); setBusy(''); }
   };
