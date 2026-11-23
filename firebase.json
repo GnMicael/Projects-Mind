@@ -1,10 +1,12 @@
 {
   "firestore": {
+    "database": "(default)",
+    "location": "southamerica-east1",
     "rules": "firestore.rules",
     "indexes": "firestore.indexes.json"
   },
   "hosting": {
-    "public": "frontend/dist",
+    "public": "dist",
     "ignore": [
       "firebase.json",
       "**/.*",
@@ -15,26 +17,15 @@
         "source": "**",
         "destination": "/index.html"
       }
-    ],
-    "headers": [
-      {
-        "source": "/sw.js",
-        "headers": [
-          {
-            "key": "Cache-Control",
-            "value": "no-cache"
-          }
-        ]
-      },
-      {
-        "source": "/manifest.webmanifest",
-        "headers": [
-          {
-            "key": "Cache-Control",
-            "value": "no-cache"
-          }
-        ]
-      }
     ]
+  },
+  "auth": {
+    "providers": {
+      "emailPassword": true,
+      "googleSignIn": {
+        "oAuthBrandDisplayName": " Project-Mind",
+        "supportEmail": "micaelgiovane28@gmail.com"
+      }
+    }
   }
 }
