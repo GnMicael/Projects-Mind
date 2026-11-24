@@ -5,6 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useAuth } from '../context/AuthContext';
 import { createProject, getProject, updateProject } from '../lib/projects';
+import { describeError } from '../lib/errors';
 import { METHODS, PRIORITY, STATUS, TEMPLATES, TYPES } from '../config/projects';
 
 const opt = z.string().trim().max(2000).optional();
@@ -51,7 +52,7 @@ export default function ProjectForm() {
     try {
       if (id) await updateProject(id, data); else await createProject(user.uid, data);
       navigate('/app/projetos');
-    } catch { setErr('Não foi possível salvar. Verifique sua conexão e tente de novo.'); }
+    } catch (e) { console.error('Erro ao salvar projeto:', e); setErr(describeError(e)); }
   };
 
   if (loading) return <p className="text-muted">Carregando…</p>;

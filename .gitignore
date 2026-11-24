@@ -4,3 +4,10 @@ node_modules
 *.json.key
 serviceAccount*.json
 dist
+
+# criados pelo firebase init / ferramentas
+.firebase/
+.agents/
+skills-lock.json
+*.log
+.DS_Store

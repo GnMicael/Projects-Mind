@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
 import Modal from './Modal';
+import { describeError } from '../lib/errors';
 import { useAuth } from '../context/AuthContext';
 import { createOwned, removeOwned, updateOwned } from '../lib/crud';
 import { PRIORITY } from '../config/projects';
@@ -48,7 +49,7 @@ export default function TaskModal({ task, initial, projects, projectId, status, 
     const data = { ...rest, title: f.title.trim(), labels: f.labels.split(',').map((s) => s.trim()).filter(Boolean).slice(0, 10), status: cols.some((c) => c.id === f.status) ? f.status : cols[0].id };
     if (task && data.status === task.status) delete data.status;
     try { if (task) await updateOwned('tasks', task.id, data); else await createOwned('tasks', user.uid, data); onSaved?.(); onClose(); }
-    catch { setErr('Não foi possível salvar. Tente novamente.'); setBusy(false); }
+    catch (e) { console.error(e); setErr(describeError(e)); setBusy(false); }
   };
   const del = async () => {
     if (!window.confirm('Excluir esta tarefa?')) return;

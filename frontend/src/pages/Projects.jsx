@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Archive, Copy, LayoutGrid, List, Pencil, Search, Star, Trash2, FolderPlus } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import useProjects from '../hooks/useProjects';
+import { describeError } from '../lib/errors';
 import useOwned from '../hooks/useOwned';
 import { deleteProject, duplicateProject, updateProject } from '../lib/projects';
 import { PRIORITY, STATUS, fmtDate, fmtTs } from '../config/projects';
@@ -38,7 +39,7 @@ export default function Projects() {
     return [...l].sort(cmp);
   }, [projects, q, status, prio, favOnly, sort]);
 
-  const act = async (fn, ok) => { setMsg(''); try { await fn(); setMsg(ok); } catch { setMsg('Não foi possível concluir a ação. Tente novamente.'); } };
+  const act = async (fn, ok) => { setMsg(''); try { await fn(); setMsg(ok); } catch (e) { console.error(e); setMsg(describeError(e)); } };
   const actions = (p) => [
     [Star, p.favorite ? 'Remover dos favoritos' : 'Favoritar', () => act(() => updateProject(p.id, { favorite: !p.favorite }), ''), p.favorite ? 'text-amber' : ''],
     [Pencil, 'Editar', () => navigate(`/app/projetos/${p.id}/editar`)],

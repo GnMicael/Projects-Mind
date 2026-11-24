@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import Modal from './Modal';
+import { describeError } from '../lib/errors';
 import { useAuth } from '../context/AuthContext';
 import { createOwned, removeOwned, updateOwned } from '../lib/crud';
 
@@ -27,7 +28,7 @@ export default function EventModal({ event, projects, projectId, start, onClose 
     const { id, ownerId, createdAt, updatedAt, ...rest } = f;
     const data = { ...rest, title: f.title.trim() };
     try { if (event) await updateOwned('events', event.id, data); else await createOwned('events', user.uid, data); onClose(); }
-    catch { setErr('Não foi possível salvar. Tente novamente.'); setBusy(false); }
+    catch (e) { console.error(e); setErr(describeError(e)); setBusy(false); }
   };
   const del = async () => {
     if (!window.confirm('Excluir este evento?')) return;

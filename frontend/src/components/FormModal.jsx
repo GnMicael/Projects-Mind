@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import Modal from './Modal';
+import { describeError } from '../lib/errors';
 
 const norm = (o) => (typeof o === 'string' ? { value: o, label: o } : o);
 
@@ -19,7 +20,7 @@ export default function FormModal({ title, fields, initial = {}, onSubmit, onDel
       out[f.key] = f.type === 'number' || f.numeric ? (x === '' ? null : Number(x)) : typeof x === 'string' ? x.trim() : x;
     }
     setBusy(true); setErr('');
-    try { await onSubmit(out); onClose(); } catch { setErr('Não foi possível salvar. Tente novamente.'); setBusy(false); }
+    try { await onSubmit(out); onClose(); } catch (e) { console.error(e); setErr(describeError(e)); setBusy(false); }
   };
   const del = async () => {
     if (!window.confirm('Excluir este item? Esta ação não pode ser desfeita.')) return;

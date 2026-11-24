@@ -1,0 +1,78 @@
+name: Deploy
+
+# A cada push na main: testa, compila e publica o site (Hosting) e as regras do Firestore.
+# Também pode ser disparado à mão na aba Actions.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+env:
+  FIREBASE_PROJECT: project-mind-3dd95
+
+jobs:
+  deploy:
+    name: Testar, compilar e publicar
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: ${{ hashFiles('frontend/package-lock.json') != '' && 'npm' || '' }}
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Instalar dependências do frontend
+        working-directory: frontend
+        run: if [ -f package-lock.json ]; then npm ci; else npm install; fi
+
+      - name: Testes
+        working-directory: frontend
+        run: npm test
+
+      - name: Build
+        working-directory: frontend
+        run: npm run build
+        env:
+          VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
+          VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
+          VITE_FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
+          VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}
+          VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
+          VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
+          VITE_SUPPORT_WHATSAPP: ${{ secrets.VITE_SUPPORT_WHATSAPP }}
+          VITE_SUPPORT_EMAIL: ${{ secrets.VITE_SUPPORT_EMAIL }}
+          VITE_EMAILJS_SERVICE_ID: ${{ secrets.VITE_EMAILJS_SERVICE_ID }}
+          VITE_EMAILJS_TEMPLATE_ID: ${{ secrets.VITE_EMAILJS_TEMPLATE_ID }}
+          VITE_EMAILJS_PUBLIC_KEY: ${{ secrets.VITE_EMAILJS_PUBLIC_KEY }}
+
+      - name: Preparar credenciais do Firebase
+        id: sa
+        env:
+          SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          if [ -z "$SA" ]; then
+            echo "::warning::Secret FIREBASE_SERVICE_ACCOUNT não configurado. O deploy foi ignorado."
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          else
+            printf '%s' "$SA" > "$RUNNER_TEMP/firebase-sa.json"
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Publicar no Firebase (Hosting + regras do Firestore)
+        if: steps.sa.outputs.ok == 'true'
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/firebase-sa.json
+        run: npx --yes firebase-tools@latest deploy --only hosting,firestore:rules --project "$FIREBASE_PROJECT" --non-interactive
+
+      - name: Remover credenciais
+        if: always()
+        run: rm -f "$RUNNER_TEMP/firebase-sa.json"
