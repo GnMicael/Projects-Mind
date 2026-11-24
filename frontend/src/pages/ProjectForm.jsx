@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { forwardRef, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -24,7 +24,9 @@ const schema = z.object({
 function F({ label, error, children, id }) {
   return <div><label className="label" htmlFor={id}>{label}</label>{children}{error && <p className="err">{error.message}</p>}</div>;
 }
-const Sel = ({ list, ...p }) => <select className="input" {...p}>{list.map((o) => <option key={o}>{o}</option>)}</select>;
+// forwardRef é obrigatório: sem ele o react-hook-form não enxerga o <select> e devolve undefined ao trocar a opção
+const Sel = forwardRef(({ list, ...p }, ref) => <select ref={ref} className="input" {...p}>{list.map((o) => <option key={o}>{o}</option>)}</select>);
+Sel.displayName = 'Sel';
 
 export default function ProjectForm() {
   const { id } = useParams();

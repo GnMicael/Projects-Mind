@@ -4,6 +4,8 @@ import { createOwned } from './crud';
 import { ord } from '../config/tasks';
 
 const col = collection(db, 'projects');
+// Firestore recusa valores undefined; descarta-os para que os padrões (ex.: prioridade 'Média') valham
+const clean = (o) => Object.fromEntries(Object.entries(o).filter(([, v]) => v !== undefined));
 
 export const subscribeProjects = (uid, onData, onError) =>
   onSnapshot(query(col, where('ownerId', '==', uid)),
@@ -15,9 +17,9 @@ export const getProject = async (id) => {
 };
 
 export const createProject = (uid, data) =>
-  addDoc(col, { progress: 0, status: 'Planejamento', priority: 'Média', ...data, ownerId: uid, favorite: false, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
+  addDoc(col, { progress: 0, status: 'Planejamento', priority: 'Média', ...clean(data), ownerId: uid, favorite: false, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
 
-export const updateProject = (id, data) => updateDoc(doc(db, 'projects', id), { ...data, updatedAt: serverTimestamp() });
+export const updateProject = (id, data) => updateDoc(doc(db, 'projects', id), { ...clean(data), updatedAt: serverTimestamp() });
 export const deleteProject = async (uid, id) => {
   const batch = writeBatch(db);
   for (const name of ['tasks', 'events', 'stakeholders', 'risks', 'goals', 'milestones', 'notes']) {
